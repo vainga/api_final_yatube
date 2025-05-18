@@ -1,12 +1,11 @@
+"""Модуль для проверки полномочий действий пользователя над объектами."""
 from rest_framework import permissions
 
 
-class OwnerOrReadOnly(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return (
-            request.method in permissions.SAFE_METHODS
-            or request.user.is_authenticated
-        )
+class IsAuthorOrReadOnly(permissions.BasePermission):
+    """
+    Проверяет полномочие на изменение или удаление поста только его автором.
+    """
 
     def has_object_permission(self, request, view, obj):
         return (request.method in permissions.SAFE_METHODS
