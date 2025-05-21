@@ -1,49 +1,110 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
+LENGTH_TEXT = 20
 User = get_user_model()
 
 
+class Post(models.Model):
+    """Класс для создания записей."""
+
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="posts",
+        verbose_name="Автор"
+    )
+    text = models.TextField(verbose_name="Запись")
+    pub_date = models.DateTimeField(
+        auto_now_add=True, verbose_name="Дата публикации", db_index=True
+    )
+    image = models.ImageField(
+        upload_to="posts/", null=True, blank=True, verbose_name="Изображение"
+    )
+    group = models.ForeignKey(
+        "Group",
+        on_delete=models.SET_NULL,
+        related_name="posts",
+        blank=True,
+        null=True,
+        verbose_name="Сообщество",
+    )
+
+    class Meta:
+        verbose_name = "Запись"
+        verbose_name_plural = "Записи"
+        ordering = ("-pub_date",)
+
+    def __str__(self):
+        return self.text[:LENGTH_TEXT].strip()
+
+
 class Group(models.Model):
-    title = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=50, unique=True)
-    description = models.TextField()
+    """Класс для создания сообществ."""
+
+    title = models.CharField(
+        max_length=200, verbose_name="Название сообщества", db_index=True
+    )
+    slug = models.SlugField(unique=True, verbose_name="Адрес")
+    description = models.TextField(verbose_name="Описание")
+
+    class Meta:
+        verbose_name = "Сообщество"
+        verbose_name_plural = "Сообщества"
+        ordering = ("title",)
 
     def __str__(self):
         return self.title
 
 
-class Post(models.Model):
-    text = models.TextField()
-    pub_date = models.DateTimeField('Дата публикации', auto_now_add=True)
+class Comment(models.Model):
+    """Класс для комментирования записей."""
+
     author = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='posts')
-    image = models.ImageField(
-        upload_to='posts/', null=True, blank=True)
-    group = models.ForeignKey(
-        Group, on_delete=models.CASCADE, related_name='posts',
-        null=True, blank=True)
+        User, on_delete=models.CASCADE, related_name="comments",
+        verbose_name="Автор"
+    )
+    text = models.TextField(verbose_name="Комментарий")
+    created = models.DateTimeField(
+        auto_now_add=True, verbose_name="Дата публикации", db_index=True
+    )
+    post = models.ForeignKey(
+        Post, on_delete=models.CASCADE, related_name="comments",
+        verbose_name="Запись"
+    )
+
+    class Meta:
+        verbose_name = "Комментарий"
+        verbose_name_plural = "Комментарии"
+        ordering = ("-created",)
 
     def __str__(self):
-        return self.text
-
-
-class Comment(models.Model):
-    author = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='comments')
-    post = models.ForeignKey(
-        Post, on_delete=models.CASCADE, related_name='comments')
-    text = models.TextField()
-    created = models.DateTimeField(
-        'Дата добавления', auto_now_add=True, db_index=True)
+        return self.text[:LENGTH_TEXT].strip()
 
 
 class Follow(models.Model):
+    """Класс для подписки на авторов."""
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='follower')
+        related_name="follower",
+        verbose_name="Подписчик",
+    )
     following = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='following')
+        User, on_delete=models.PROTECT, related_name="following",
+        verbose_name="Автор"
+    )
+
+    class Meta:
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
+        ordering = ("following",)
+        constraints = (
+            models.UniqueConstraint(
+                fields=[
+                    "following",
+                    "user"],
+                name="unique_follow"),
+        )
+
+    def __str__(self):
+        return f"{self.user.username} → {self.following.username}"
